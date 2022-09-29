@@ -1,7 +1,7 @@
 .PHONY: clean
 clean:
-	rm -rf dist
+	rm -rf boto3sqs/dist
 
 .PHONY: build
 build: clean
-	pipx run hatch build
+	cd boto3sqs; pipx run hatch build

@@ -1,2 +1,2 @@
-dist/*
-!dist/*.whl
+poetry.lock
+.venv
