@@ -29,13 +29,15 @@ To build this project:
 
 Update the version file [src/opentelemetry/instrumentation/boto3sqs/version.py](src/opentelemetry/instrumentation/boto3sqs/version.py) to the new version: `<VERSION>`.
 
+This requires [pipx](https://pypa.github.io/pipx/installation/).
+
 ```shell
 make build
 git tag <VERSION>
 git push --tags
 ```
 
-this requires [pipx](https://pypa.github.io/pipx/installation/).
+it's recommended to use the `post<number>` suffix on the original Opentelemetry package release to distinguish between the Otel version and Signal changes.
 
 ## References
 
