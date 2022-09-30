@@ -1,2 +1,2 @@
 dist/*
-!dist/opentelemetry_instrumentation_boto3sqs-py3-none-any.whl
+!dist/opentelemetry_instrumentation_boto3sqs-*-py3-none-any.whl

@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "opentelemetry-instrumentation-boto3sqs"
 dynamic = ["version"]
 description = "Boto3 SQS service tracing for OpenTelemetry"
-readme = "README.rst"
+readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.7"
 authors = [
