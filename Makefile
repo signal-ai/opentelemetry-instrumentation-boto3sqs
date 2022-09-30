@@ -1,7 +1,8 @@
 .PHONY: clean
 clean:
-	rm -rf boto3sqs/dist
+	rm -rf dist
 
 .PHONY: build
 build: clean
-	cd boto3sqs; pipx run hatch build
+	pipx run hatch build --target wheel
+	mv dist/*.whl dist/opentelemetry_instrumentation_boto3sqs-py3-none-any.whl
