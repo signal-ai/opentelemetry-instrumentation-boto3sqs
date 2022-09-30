@@ -33,14 +33,9 @@ from typing import Any, Collection, Dict, Generator, List, Mapping, Optional
 
 import boto3
 import botocore.client
-from wrapt import wrap_function_wrapper
-
 from opentelemetry import context, propagate, trace
 from opentelemetry.instrumentation.instrumentor import BaseInstrumentor
-from opentelemetry.instrumentation.utils import (
-    _SUPPRESS_INSTRUMENTATION_KEY,
-    unwrap,
-)
+from opentelemetry.instrumentation.utils import _SUPPRESS_INSTRUMENTATION_KEY, unwrap
 from opentelemetry.propagators.textmap import CarrierT, Getter, Setter
 from opentelemetry.semconv.trace import (
     MessagingDestinationKindValues,
@@ -48,6 +43,7 @@ from opentelemetry.semconv.trace import (
     SpanAttributes,
 )
 from opentelemetry.trace import Link, Span, SpanKind, Tracer, TracerProvider
+from wrapt import wrap_function_wrapper
 
 from .package import _instruments
 from .version import __version__
@@ -196,6 +192,9 @@ class Boto3SQSInstrumentor(BaseInstrumentor):
         span = self._tracer.start_span(
             name=f"{queue_name} process",
             kind=SpanKind.CONSUMER,
+            # TODO: if the parent_span_ctx is none, i.e. there's no upstream context,
+            # this ends up using the receive-message context which is not what we want, instead we want a new root context
+            # it's not clear how to do this using the API
             context=ctx if parent_span_ctx.is_valid else None,
             links=links,
         )
