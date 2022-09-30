@@ -189,13 +189,13 @@ class Boto3SQSInstrumentor(BaseInstrumentor):
         ctx = propagate.extract(message_attributes, getter=boto3sqs_getter)
         parent_span_ctx = trace.get_current_span(ctx).get_span_context()
 
+        # unset the current span, getting the root context
+        root_context = trace.set_span_in_context(None)
+
         span = self._tracer.start_span(
             name=f"{queue_name} process",
             kind=SpanKind.CONSUMER,
-            # TODO: if the parent_span_ctx is none, i.e. there's no upstream context,
-            # this ends up using the receive-message context which is not what we want, instead we want a new root context
-            # it's not clear how to do this using the API
-            context=ctx if parent_span_ctx.is_valid else None,
+            context=ctx if parent_span_ctx.is_valid else root_context,
             links=links,
         )
         with trace.use_span(span):

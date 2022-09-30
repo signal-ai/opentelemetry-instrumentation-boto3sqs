@@ -25,6 +25,14 @@ Copied from <https://github.com/open-telemetry/opentelemetry-python-contrib>: <h
 
 ## Developing
 
+### Testing
+
+```shell
+make test
+```
+
+### Releasing
+
 To build this project:
 
 Update the version file [src/opentelemetry/instrumentation/boto3sqs/version.py](src/opentelemetry/instrumentation/boto3sqs/version.py) to the new version: `<VERSION>`.

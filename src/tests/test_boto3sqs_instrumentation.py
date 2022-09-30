@@ -20,12 +20,16 @@ from unittest import TestCase, mock
 
 import boto3
 from botocore.awsrequest import AWSResponse
-from opentelemetry.instrumentation.boto3sqs import (Boto3SQSGetter,
-                                                    Boto3SQSInstrumentor,
-                                                    Boto3SQSSetter)
-from opentelemetry.semconv.trace import (MessagingDestinationKindValues,
-                                         MessagingOperationValues,
-                                         SpanAttributes)
+from opentelemetry.instrumentation.boto3sqs import (
+    Boto3SQSGetter,
+    Boto3SQSInstrumentor,
+    Boto3SQSSetter,
+)
+from opentelemetry.semconv.trace import (
+    MessagingDestinationKindValues,
+    MessagingOperationValues,
+    SpanAttributes,
+)
 from opentelemetry.test.test_base import TestBase
 from opentelemetry.trace import SpanKind
 from opentelemetry.trace.span import Span, format_span_id, format_trace_id
@@ -48,9 +52,7 @@ class TestBoto3SQSInstrumentor(TestCase):
         self.assertIsInstance(client.send_message_batch, BoundFunctionWrapper)
         self.assertIsInstance(client.receive_message, BoundFunctionWrapper)
         self.assertIsInstance(client.delete_message, BoundFunctionWrapper)
-        self.assertIsInstance(
-            client.delete_message_batch, BoundFunctionWrapper
-        )
+        self.assertIsInstance(client.delete_message_batch, BoundFunctionWrapper)
 
     @staticmethod
     @contextmanager
@@ -132,7 +134,9 @@ class TestBoto3SQSInstrumentation(TestBase):
 
         self._client = _make_sqs_client()
         self._queue_name = "MyQueue"
-        self._queue_url = f"https://sqs.us-east-1.amazonaws.com/123456789012/{self._queue_name}"
+        self._queue_url = (
+            f"https://sqs.us-east-1.amazonaws.com/123456789012/{self._queue_name}"
+        )
 
     def tearDown(self):
         super().tearDown()
@@ -155,9 +159,7 @@ class TestBoto3SQSInstrumentation(TestBase):
     @contextmanager
     def _mocked_endpoint(self, response):
         response_func = self._make_aws_response_func(response)
-        with mock.patch(
-            "botocore.endpoint.Endpoint.make_request", new=response_func
-        ):
+        with mock.patch("botocore.endpoint.Endpoint.make_request", new=response_func):
             yield
 
     def _assert_injected_span(self, msg_attrs: Dict[str, Any], span: Span):
@@ -197,9 +199,7 @@ class TestBoto3SQSInstrumentation(TestBase):
             "MessageAttributes": {},
         }
 
-    def _add_trace_parent(
-        self, message: Dict[str, Any], trace_id: int, span_id: int
-    ):
+    def _add_trace_parent(self, message: Dict[str, Any], trace_id: int, span_id: int):
         message["MessageAttributes"]["traceparent"] = {
             "StringValue": self._to_trace_parent(trace_id, span_id),
             "DataType": "String",
@@ -244,12 +244,8 @@ class TestBoto3SQSInstrumentation(TestBase):
 
         mock_response = {"Messages": []}
         for msg_id, attrs in msg_def.items():
-            message = self._make_message(
-                msg_id, f"hello {msg_id}", attrs["receipt"]
-            )
-            self._add_trace_parent(
-                message, attrs["trace_id"], attrs["span_id"]
-            )
+            message = self._make_message(msg_id, f"hello {msg_id}", attrs["receipt"])
+            self._add_trace_parent(message, attrs["trace_id"], attrs["span_id"])
             mock_response["Messages"].append(message)
 
         message_attr_names = []
@@ -263,15 +259,16 @@ class TestBoto3SQSInstrumentation(TestBase):
         self.assertIn("traceparent", message_attr_names)
 
         # receive span
-        span = self._get_only_span()
-        self.assertEqual(f"{self._queue_name} receive", span.name)
-        self.assertEqual(SpanKind.CONSUMER, span.kind)
+        receive_span = self._get_only_span()
+        receive_span_ctx = receive_span.get_span_context()
+        self.assertEqual(f"{self._queue_name} receive", receive_span.name)
+        self.assertEqual(SpanKind.CONSUMER, receive_span.kind)
         self.assertEqual(
             {
                 SpanAttributes.MESSAGING_OPERATION: MessagingOperationValues.RECEIVE.value,
                 **self._default_span_attrs(),
             },
-            span.attributes,
+            receive_span.attributes,
         )
 
         self.memory_exporter.clear()
@@ -302,7 +299,55 @@ class TestBoto3SQSInstrumentation(TestBase):
             # processing span links
             self.assertEqual(1, len(span.links))
             link = span.links[0]
-            self.assertEqual(attrs["trace_id"], link.context.trace_id)
-            self.assertEqual(attrs["span_id"], link.context.span_id)
+            self.assertEqual(receive_span_ctx.trace_id, link.context.trace_id)
+            self.assertEqual(receive_span_ctx.span_id, link.context.span_id)
+
+            # processing span parent
+            self.assertEqual(attrs["trace_id"], span.get_span_context().trace_id)
 
             self.memory_exporter.clear()
+
+    def test_receive_message_no_parent(self):
+        msg_def = {
+            "1": {"receipt": "01"},
+            "2": {"receipt": "02"},
+        }
+
+        mock_response = {"Messages": []}
+        for msg_id, attrs in msg_def.items():
+            message = self._make_message(msg_id, f"hello {msg_id}", attrs["receipt"])
+            mock_response["Messages"].append(message)
+
+        message_attr_names = []
+
+        with self._mocked_endpoint(mock_response):
+            response = self._client.receive_message(
+                QueueUrl=self._queue_url,
+                MessageAttributeNames=message_attr_names,
+            )
+
+            # receive span
+            receive_span = self._get_only_span()
+            receive_span_ctx = receive_span.get_span_context()
+
+            self.memory_exporter.clear()
+
+            # processing spans
+            self.assertEqual(2, len(response["Messages"]))
+            for msg in response["Messages"]:
+                msg_id = msg["MessageId"]
+                attrs = msg_def[msg_id]
+                with self._mocked_endpoint(None):
+                    self._client.delete_message(
+                        QueueUrl=self._queue_url, ReceiptHandle=attrs["receipt"]
+                    )
+
+                span = self._get_only_span()
+                self.assertEqual(f"{self._queue_name} process", span.name)
+
+                # processing span parent is not the receive span
+                self.assertNotEqual(
+                    receive_span_ctx.trace_id, span.get_span_context().trace_id
+                )
+
+                self.memory_exporter.clear()
