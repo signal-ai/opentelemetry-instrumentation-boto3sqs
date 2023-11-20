@@ -1,3 +1,4 @@
 dist/*
 !dist/opentelemetry_instrumentation_boto3sqs-*-py3-none-any.whl
 __pycache__
+.tox

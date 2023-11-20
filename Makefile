@@ -8,4 +8,4 @@ build: clean
 
 .PHONY: test
 test:
-	pipx run tox
+	pipx run tox==3.27.1

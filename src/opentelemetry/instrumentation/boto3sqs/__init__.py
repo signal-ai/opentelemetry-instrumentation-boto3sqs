@@ -16,17 +16,17 @@ Instrument `boto3sqs`_ to trace SQS applications.
 
 .. _boto3sqs: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sqs.html
 
-
 Usage
 -----
 
-.. code:: python
+.. code-block:: python
 
     import boto3
     from opentelemetry.instrumentation.boto3sqs import Boto3SQSInstrumentor
 
-
     Boto3SQSInstrumentor().instrument()
+
+---
 """
 import logging
 from typing import Any, Collection, Dict, Generator, List, Mapping, Optional
@@ -35,7 +35,10 @@ import boto3
 import botocore.client
 from opentelemetry import context, propagate, trace
 from opentelemetry.instrumentation.instrumentor import BaseInstrumentor
-from opentelemetry.instrumentation.utils import _SUPPRESS_INSTRUMENTATION_KEY, unwrap
+from opentelemetry.instrumentation.utils import (
+    _SUPPRESS_INSTRUMENTATION_KEY,
+    unwrap,
+)
 from opentelemetry.propagators.textmap import CarrierT, Getter, Setter
 from opentelemetry.semconv.trace import (
     MessagingDestinationKindValues,
@@ -97,7 +100,7 @@ class Boto3SQSInstrumentor(BaseInstrumentor):
     class ContextableList(list):
         """
         Since the classic way to process SQS messages is using a `for` loop, without a well defined scope like a
-        callback - we are doing something similar to the instrumentaiton of Kafka-python and instrumenting the
+        callback - we are doing something similar to the instrumentation of Kafka-python and instrumenting the
         `__iter__` functions and the `__getitem__` functions to set the span context of the addressed message. Since
         the return value from an `SQS.ReceiveMessage` returns a builtin list, we cannot wrap it and change all of the
         calls for `list.__iter__` and `list.__getitem__` - therefore we use ContextableList. It is bound to the
@@ -391,7 +394,10 @@ class Boto3SQSInstrumentor(BaseInstrumentor):
     def _instrument(self, **kwargs: Dict[str, Any]) -> None:
         self._tracer_provider: Optional[TracerProvider] = kwargs.get("tracer_provider")
         self._tracer: Tracer = trace.get_tracer(
-            __name__, __version__, self._tracer_provider
+            __name__,
+            __version__,
+            self._tracer_provider,
+            schema_url="https://opentelemetry.io/schemas/1.11.0",
         )
         self._wrap_client_creation()
 

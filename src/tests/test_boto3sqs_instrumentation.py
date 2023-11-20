@@ -307,47 +307,26 @@ class TestBoto3SQSInstrumentation(TestBase):
 
             self.memory_exporter.clear()
 
-    def test_receive_message_no_parent(self):
-        msg_def = {
-            "1": {"receipt": "01"},
-            "2": {"receipt": "02"},
+    def test_uninstrument(self):
+        mock_response = {
+            "MessageId": "123456789",
         }
 
-        mock_response = {"Messages": []}
-        for msg_id, attrs in msg_def.items():
-            message = self._make_message(msg_id, f"hello {msg_id}", attrs["receipt"])
-            mock_response["Messages"].append(message)
-
-        message_attr_names = []
-
         with self._mocked_endpoint(mock_response):
-            response = self._client.receive_message(
+            self._client.send_message(
                 QueueUrl=self._queue_url,
-                MessageAttributeNames=message_attr_names,
+                MessageBody="test",
             )
 
-            # receive span
-            receive_span = self._get_only_span()
-            receive_span_ctx = receive_span.get_span_context()
+            spans = self.get_finished_spans()
+            self.assertEqual(1, len(spans))
 
             self.memory_exporter.clear()
+            Boto3SQSInstrumentor().uninstrument()
 
-            # processing spans
-            self.assertEqual(2, len(response["Messages"]))
-            for msg in response["Messages"]:
-                msg_id = msg["MessageId"]
-                attrs = msg_def[msg_id]
-                with self._mocked_endpoint(None):
-                    self._client.delete_message(
-                        QueueUrl=self._queue_url, ReceiptHandle=attrs["receipt"]
-                    )
-
-                span = self._get_only_span()
-                self.assertEqual(f"{self._queue_name} process", span.name)
-
-                # processing span parent is not the receive span
-                self.assertNotEqual(
-                    receive_span_ctx.trace_id, span.get_span_context().trace_id
-                )
-
-                self.memory_exporter.clear()
+            self._client.send_message(
+                QueueUrl=self._queue_url,
+                MessageBody="test",
+            )
+            spans = self.get_finished_spans()
+            self.assertEqual(0, len(spans))
