@@ -31,12 +31,12 @@ Usage
 import logging
 from typing import Any, Collection, Dict, Generator, List, Mapping, Optional
 
-import boto3
+import boto3.session
 import botocore.client
 from opentelemetry import context, propagate, trace
 from opentelemetry.instrumentation.instrumentor import BaseInstrumentor
 from opentelemetry.instrumentation.utils import (
-    _SUPPRESS_INSTRUMENTATION_KEY,
+    is_instrumentation_enabled,
     unwrap,
 )
 from opentelemetry.propagators.textmap import CarrierT, Getter, Setter
@@ -214,7 +214,7 @@ class Boto3SQSInstrumentor(BaseInstrumentor):
 
     def _wrap_send_message(self, sqs_class: type) -> None:
         def send_wrapper(wrapped, instance, args, kwargs):
-            if context.get_value(_SUPPRESS_INSTRUMENTATION_KEY):
+            if not is_instrumentation_enabled():
                 return wrapped(*args, **kwargs)
             queue_url = kwargs.get("QueueUrl")
             # The method expect QueueUrl and Entries params, so if they are None, we call wrapped to receive the
@@ -245,11 +245,7 @@ class Boto3SQSInstrumentor(BaseInstrumentor):
             entries = kwargs.get("Entries")
             # The method expect QueueUrl and Entries params, so if they are None, we call wrapped to receive the
             # original exception
-            if (
-                context.get_value(_SUPPRESS_INSTRUMENTATION_KEY)
-                or not queue_url
-                or not entries
-            ):
+            if not is_instrumentation_enabled() or not queue_url or not entries:
                 return wrapped(*args, **kwargs)
             queue_name = Boto3SQSInstrumentor._extract_queue_name_from_url(queue_url)
             ids_to_spans: Dict[str, Span] = {}
@@ -356,7 +352,7 @@ class Boto3SQSInstrumentor(BaseInstrumentor):
             self._decorate_sqs(type(retval))
             return retval
 
-        wrap_function_wrapper(boto3, "client", client_wrapper)
+        wrap_function_wrapper(boto3.session.Session, "client", client_wrapper)
 
     def _decorate_sqs(self, sqs_class: type) -> None:
         """
@@ -405,7 +401,7 @@ class Boto3SQSInstrumentor(BaseInstrumentor):
             self._decorate_sqs(client_cls)
 
     def _uninstrument(self, **kwargs: Dict[str, Any]) -> None:
-        unwrap(boto3, "client")
+        unwrap(boto3.session.Session, "client")
 
         for client_cls in botocore.client.BaseClient.__subclasses__():
             self._un_decorate_sqs(client_cls)
