@@ -4,8 +4,8 @@ clean:
 
 .PHONY: build
 build: clean
-	pipx run hatch build --target wheel
+	uvx hatch build --target wheel
 
 .PHONY: test
 test:
-	pipx run tox==3.27.1
+	uvx --with tox-uv==1.29.0 tox==4.32.0

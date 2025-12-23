@@ -37,7 +37,7 @@ To build this project:
 
 Update the version file [src/opentelemetry/instrumentation/boto3sqs/version.py](src/opentelemetry/instrumentation/boto3sqs/version.py) to the new version: `<VERSION>`.
 
-This requires [pipx](https://pypa.github.io/pipx/installation/).
+This requires [uv](https://docs.astral.sh/uv/getting-started/installation/).
 
 ```shell
 make build
